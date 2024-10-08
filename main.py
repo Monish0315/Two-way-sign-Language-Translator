@@ -67,6 +67,7 @@ def check_sim(i,file_map):
 
 op_dest = r"C:\Users\pmoni\two-way-sign-language-translator\filtered_data"  # Update this to your actual path
 alpha_dest = r"C:\Users\pmoni\two-way-sign-language-translator\alphabet"
+
 #op_dest="/home/aniket/Desktop/Projects/gif_extract/filtered_data/"
 #alpha_dest="/home/aniket/Desktop/Projects/gif_extract/alphabet/"
 dirListing = os.listdir(op_dest)
@@ -245,6 +246,8 @@ class StoV(tk.Frame):
               label = tk.Label(self, text="Sign to Voice", font=("Verdana", 16, "bold"), bg='#f0f0f0')
               label.pack(pady=10)
 
+              self.disp_txt = tk.Text(self, height=4, width=25)  # Initialize disp_txt here
+              self.disp_txt.pack()
               button_frame = tk.Frame(self, bg='#f0f0f0')
               button_frame.pack(pady=10)
 
@@ -285,18 +288,25 @@ class StoV(tk.Frame):
                             save_img = cv2.resize(mask, (image_x, image_y))  # Already resizing to 64x64, so this is fine
                             cv2.imwrite(img_name, save_img)
 
+                            def speak_text(text):
+                                   engine = pyttsx3.init()
+                                   engine.say(text)
+                                   engine.runAndWait()
+
                             tmp_text=img_text[0:]
                             img_text = give_char()
                             if(tmp_text!=img_text):
                                    print(tmp_text)
-                                   disp_txt.insert(END, tmp_text)
+                                   self.disp_txt.insert(END, tmp_text)
+                                   speak_text(tmp_text)
+
                             img = PIL.Image.fromarray(frame)
                             imgtk = ImageTk.PhotoImage(image=img)
                             video_frame.imgtk = imgtk
                             video_frame.configure(image=imgtk)
                             video_frame.after(1, video_stream)
                      video_stream()
-                     disp_txt.pack()
+                     self.disp_txt.pack()
                      video_frame.pack()
               
               start_vid = tk.Button(self,height = 2,width = 20, text="Start Video",command=lambda: start_video())
