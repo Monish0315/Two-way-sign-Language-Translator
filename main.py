@@ -40,7 +40,7 @@ def give_char():
     test_image = test_image.flatten().reshape(1, 12288)  # Shape: (1, 12288)
     
     # Since the model expects an input of shape (1, 32), we will reduce the dimensions manually
-    test_image_reduced = test_image[:, :32]  # Keep only the first 32 features
+    test_image_reduced = test_image[:, :32] 
     
     try:
         # Pass the reduced input to the model
@@ -50,7 +50,7 @@ def give_char():
         return chars[indx]
     except Exception as e:
         print(f"Error in prediction: {e}")
-        return ''  # Return an empty string if there is an error
+        return ''  
 
 def create_button(parent, text, command, color, row, col, padx=10, pady=5):
     button = tk.Button(parent, text=text, command=command, 
@@ -65,11 +65,9 @@ def check_sim(i,file_map):
                             return 1,item
        return -1,""
 
-op_dest = r"C:\Users\pmoni\two-way-sign-language-translator\filtered_data"  # Update this to your actual path
+op_dest = r"C:\Users\pmoni\two-way-sign-language-translator\filtered_data" 
 alpha_dest = r"C:\Users\pmoni\two-way-sign-language-translator\alphabet"
 
-#op_dest="/home/aniket/Desktop/Projects/gif_extract/filtered_data/"
-#alpha_dest="/home/aniket/Desktop/Projects/gif_extract/alphabet/"
 dirListing = os.listdir(op_dest)
 editFiles = []
 for item in dirListing:
@@ -198,7 +196,7 @@ class VideoToSign(tk.Frame):
                      img = gif_frames[cnt]
                      cnt += 1
                      imgtk = ImageTk.PhotoImage(image=img)
-                     self.gif_box.imgtk = imgtk  # Use self.gif_box
+                     self.gif_box.imgtk = imgtk 
                      self.gif_box.configure(image=imgtk)
                      self.gif_box.after(100, gif_stream)  # Adjusting the delay to 100 ms for smoother playback
 
