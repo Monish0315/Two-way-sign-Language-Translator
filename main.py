@@ -133,7 +133,7 @@ class Tk_Manage(tk.Tk):
               container.grid_rowconfigure(0, weight=1)
               container.grid_columnconfigure(0, weight=1)
               self.frames = {}
-              for F in (StartPage, VtoS, StoV):
+              for F in (StartPage, VideoToSign, SignToVideo):
                      frame = F(container, self)
                      self.frames[F] = frame
                      frame.grid(row=0, column=0, sticky="nsew")
@@ -147,21 +147,21 @@ class Tk_Manage(tk.Tk):
 class StartPage(tk.Frame):
     def __init__(self, parent, controller):
         tk.Frame.__init__(self, parent, bg='#f0f0f0')  # Light background
-        label = tk.Label(self, text="Two Way Sign Language Translator", font=("Verdana", 16, "bold"), bg='#f0f0f0')
+        label = tk.Label(self, text="Sign Language Translator", font=("Bahnscript", 24, "bold"), bg='#f0f0f0')
         label.pack(pady=20)
 
         button_frame = tk.Frame(self, bg='#f0f0f0')
         button_frame.pack(pady=10)
 
-        button = tk.Button(button_frame, text="Voice to Sign", command=lambda: controller.show_frame(VtoS), 
+        button = tk.Button(button_frame, text="Voice to Sign", command=lambda: controller.show_frame(VideoToSign), 
                            bg='#4CAF50', fg='white', font=("Arial", 12), borderwidth=0, padx=20)
         button.grid(row=0, column=0, padx=10)
 
-        button2 = tk.Button(button_frame, text="Sign to Voice", command=lambda: controller.show_frame(StoV), 
+        button2 = tk.Button(button_frame, text="Sign to Voice", command=lambda: controller.show_frame(SignToVideo), 
                             bg='#2196F3', fg='white', font=("Arial", 12), borderwidth=0, padx=20)
         button2.grid(row=0, column=1, padx=10)
 
-        load = PIL.Image.open("Two Way Sign Language Translator.png")
+        load = PIL.Image.open("Blue hand red hand.png")
         load = load.resize((620, 450), PIL.Image.LANCZOS)
 
         render = ImageTk.PhotoImage(load)
@@ -170,7 +170,7 @@ class StartPage(tk.Frame):
         img.place(x=100, y=200)
 
 
-class VtoS(tk.Frame):
+class VideoToSign(tk.Frame):
        def __init__(self, parent, controller):
               tk.Frame.__init__(self, parent, bg='#f0f0f0')
               label = tk.Label(self, text="Voice to Sign", font=("Verdana", 16, "bold"), bg='#f0f0f0')
@@ -184,7 +184,7 @@ class VtoS(tk.Frame):
                                    bg='#f44336', fg='white', font=("Arial", 12), borderwidth=0, padx=20)
               button1.grid(row=0, column=0, padx=10)
 
-              button2 = tk.Button(button_frame, text="Sign to Voice", command=lambda: controller.show_frame(StoV), 
+              button2 = tk.Button(button_frame, text="Sign to Voice", command=lambda: controller.show_frame(SignToVideo), 
                                    bg='#2196F3', fg='white', font=("Arial", 12), borderwidth=0, padx=20)
               button2.grid(row=0, column=1, padx=10)
 
@@ -240,7 +240,7 @@ class VtoS(tk.Frame):
               Display.pack()
 
 
-class StoV(tk.Frame):
+class SignToVideo(tk.Frame):
        def __init__(self, parent, controller):
               tk.Frame.__init__(self, parent, bg='#f0f0f0')
               label = tk.Label(self, text="Sign to Voice", font=("Verdana", 16, "bold"), bg='#f0f0f0')
@@ -255,7 +255,7 @@ class StoV(tk.Frame):
                                    bg='#f44336', fg='white', font=("Arial", 12), borderwidth=0, padx=20)
               button1.grid(row=0, column=0, padx=10)
 
-              button2 = tk.Button(button_frame, text="Voice to Sign", command=lambda: controller.show_frame(VtoS), 
+              button2 = tk.Button(button_frame, text="Voice to Sign", command=lambda: controller.show_frame(VideoToSign), 
                                    bg='#2196F3', fg='white', font=("Arial", 12), borderwidth=0, padx=20)
               button2.grid(row=0, column=1, padx=10)
 
