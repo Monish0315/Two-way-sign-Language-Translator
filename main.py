@@ -1,316 +1,218 @@
-
-import numpy as np
+import tkinter as tk
+from tkinter import Label
+from PIL import Image, ImageTk
 import cv2
+from ultralytics import YOLO
 import os
-import PIL
-from PIL import ImageTk
-import PIL.Image
-import speech_recognition as sr
-import pyttsx3
-from itertools import count
 import string
-from tkinter import *
-import time
-try:
-    import Tkinter as tk
-except:
-    import tkinter as tk
 import numpy as np
-image_x, image_y = 64,64
-from keras.models import load_model
-classifier = load_model('model.h5')
-import os
+from PIL import Image as PILImage
 
-model_path = 'model.h5'
-if not os.path.exists(model_path):
-    raise FileNotFoundError(f"Model file not found at: {model_path}")
-else:
-    classifier = load_model(model_path)
 
-from sklearn.decomposition import PCA
-from keras.preprocessing import image
-import numpy as np
+class SignLanguageApp(tk.Tk):
+    def __init__(self):
+        tk.Tk.__init__(self)
+        self.title("Sign Language Translator")
+        self.geometry("1200x800")
 
-def give_char():
-    # Load and preprocess the image
-    test_image = image.load_img('tmp1.png', target_size=(64, 64))  # Resize image to 64x64
-    test_image = image.img_to_array(test_image)
-    
-    # Flatten the image to shape (1, 12288) and then reshape to (1, 32)
-    test_image = test_image.flatten().reshape(1, 12288)  # Shape: (1, 12288)
-    
-    # Since the model expects an input of shape (1, 32), we will reduce the dimensions manually
-    test_image_reduced = test_image[:, :32] 
-    
-    try:
-        # Pass the reduced input to the model
-        result = classifier.predict(test_image_reduced)
-        chars = "ABCDEFGHIJKMNOPQRSTUVWXYZ"
-        indx = np.argmax(result[0])
-        return chars[indx]
-    except Exception as e:
-        print(f"Error in prediction: {e}")
-        return ''  
+        # Initialize the main container frame
+        container = tk.Frame(self)
+        container.pack(fill="both", expand=True)
 
-def create_button(parent, text, command, color, row, col, padx=10, pady=5):
-    button = tk.Button(parent, text=text, command=command, 
-                       bg=color, fg='white', font=("Arial", 12), borderwidth=0, padx=20)
-    button.grid(row=row, column=col, padx=padx, pady=pady)
-    return button
+        # Store frames in a dictionary
+        self.frames = {}
 
-def check_sim(i,file_map):
-       for item in file_map:
-              for word in file_map[item]:
-                     if(i==word):
-                            return 1,item
-       return -1,""
+        for F in (StartPage, SignToVoice, TextToSign):
+            page_name = F.__name__
+            frame = F(parent=container, controller=self)
+            self.frames[page_name] = frame
+            frame.grid(row=0, column=0, sticky="nsew")
 
-op_dest = r"C:\Users\pmoni\two-way-sign-language-translator\filtered_data" 
-alpha_dest = r"C:\Users\pmoni\two-way-sign-language-translator\alphabet"
+        # Show the start page
+        self.show_frame("StartPage")
 
-dirListing = os.listdir(op_dest)
-editFiles = []
-for item in dirListing:
-       if ".webp" in item:
-              editFiles.append(item)
+    def show_frame(self, page_name):
+        frame = self.frames[page_name]
+        frame.tkraise()
 
-file_map={}
-for i in editFiles:
-       tmp=i.replace(".webp","")
-       #print(tmp)
-       tmp=tmp.split()
-       file_map[i]=tmp
+        # Start camera only when SignToVoice page is shown
+        if page_name == "SignToVoice":
+            frame.start_camera()
 
-def func(a):
-    all_frames = []
-    final = PIL.Image.new('RGB', (380, 260))
-    words = a.split()
-    for i in words:
-        flag, sim = check_sim(i, file_map)
-        if flag == -1:
-            for j in i:
-                try:
-                    im = PIL.Image.open(os.path.join(alpha_dest, f"{j.lower()}_small.gif"))
-                    frameCnt = im.n_frames
-                    for frame_cnt in range(frameCnt):
-                        im.seek(frame_cnt)
-                        im.save("tmp.png")
-                        img = cv2.imread("tmp.png")
-                        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-                        img = cv2.resize(img, (380, 260))
-                        im_arr = PIL.Image.fromarray(img)
-                        all_frames.extend([im_arr] * 15)  # Repeat frames
-                except Exception as e:
-                    print(f"Error processing {j}: {e}")
-        else:
-            print(sim)
-            im = PIL.Image.open(os.path.join(op_dest, sim))
-            im.info.pop('background', None)
-            im.save('tmp.gif', 'gif', save_all=True)
-            im = PIL.Image.open("tmp.gif")
-            frameCnt = im.n_frames
-            for frame_cnt in range(frameCnt):
-                im.seek(frame_cnt)
-                im.save("tmp.png")
-                img = cv2.imread("tmp.png")
-                img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-                img = cv2.resize(img, (380, 260))
-                im_arr = PIL.Image.fromarray(img)
-                all_frames.append(im_arr)
 
-    final.save("out.gif", save_all=True, append_images=all_frames, duration=100, loop=0)
-    return all_frames
-
-img_counter = 0
-img_text=''
-class Tk_Manage(tk.Tk):
-       def __init__(self, *args, **kwargs):     
-              tk.Tk.__init__(self, *args, **kwargs)
-              container = tk.Frame(self)
-              container.pack(side="top", fill="both", expand = True)
-              container.grid_rowconfigure(0, weight=1)
-              container.grid_columnconfigure(0, weight=1)
-              self.frames = {}
-              for F in (StartPage, VideoToSign, SignToVideo):
-                     frame = F(container, self)
-                     self.frames[F] = frame
-                     frame.grid(row=0, column=0, sticky="nsew")
-              self.show_frame(StartPage)
-
-       def show_frame(self, cont):
-              frame = self.frames[cont]
-              frame.tkraise()
-
-        
 class StartPage(tk.Frame):
     def __init__(self, parent, controller):
-        tk.Frame.__init__(self, parent, bg='#f0f0f0')  # Light background
+        tk.Frame.__init__(self, parent)
+        self.controller = controller
+        self.config(bg='#f0f0f0')
+
+        # Title Label
         label = tk.Label(self, text="Sign Language Translator", font=("Bahnscript", 24, "bold"), bg='#f0f0f0')
         label.pack(pady=20)
 
+        # Button frame for options
         button_frame = tk.Frame(self, bg='#f0f0f0')
         button_frame.pack(pady=10)
 
-        button = tk.Button(button_frame, text="Voice to Sign", command=lambda: controller.show_frame(VideoToSign), 
+        button = tk.Button(button_frame, text="Sign to Voice", 
+                           command=lambda: controller.show_frame("SignToVoice"),
                            bg='#4CAF50', fg='white', font=("Arial", 12), borderwidth=0, padx=20)
         button.grid(row=0, column=0, padx=10)
 
-        button2 = tk.Button(button_frame, text="Sign to Voice", command=lambda: controller.show_frame(SignToVideo), 
+        button2 = tk.Button(button_frame, text="Text to Sign", 
+                            command=lambda: controller.show_frame("TextToSign"),
                             bg='#2196F3', fg='white', font=("Arial", 12), borderwidth=0, padx=20)
         button2.grid(row=0, column=1, padx=10)
 
-        load = PIL.Image.open("Blue hand red hand.png")
-        load = load.resize((620, 450), PIL.Image.LANCZOS)
-
+        # Load and display image
+        load = Image.open(r"C:\Users\pmoni\project\Two-way-sign-Language-Translator-main\Two-way-sign-Language-Translator-main\Blue hand red hand.png")
+        load = load.resize((620, 450), Image.LANCZOS)
         render = ImageTk.PhotoImage(load)
         img = Label(self, image=render, bg='#f0f0f0')
         img.image = render
         img.place(x=100, y=200)
 
 
-class VideoToSign(tk.Frame):
-       def __init__(self, parent, controller):
-              tk.Frame.__init__(self, parent, bg='#f0f0f0')
-              label = tk.Label(self, text="Voice to Sign", font=("Verdana", 16, "bold"), bg='#f0f0f0')
-              label.pack(pady=10)
-              self.gif_box = tk.Label(self)
-              self.gif_box.place(x=400, y=160)
-              button_frame = tk.Frame(self, bg='#f0f0f0')
-              button_frame.pack(pady=10)
+class SignToVoice(tk.Frame):
+    def __init__(self, parent, controller):
+        tk.Frame.__init__(self, parent)
+        self.controller = controller
+        self.cap = None  # Placeholder for the camera
+        self.model = None  # Placeholder for the YOLO model
 
-              button1 = tk.Button(button_frame, text="Back to Home", command=lambda: controller.show_frame(StartPage), 
-                                   bg='#f44336', fg='white', font=("Arial", 12), borderwidth=0, padx=20)
-              button1.grid(row=0, column=0, padx=10)
+        # Create a label to display the video stream
+        self.label = tk.Label(self)
+        self.label.pack()
 
-              button2 = tk.Button(button_frame, text="Sign to Voice", command=lambda: controller.show_frame(SignToVideo), 
-                                   bg='#2196F3', fg='white', font=("Arial", 12), borderwidth=0, padx=20)
-              button2.grid(row=0, column=1, padx=10)
+        # Button to go back to the start page
+        back_button = tk.Button(self, text="Back", 
+                                command=lambda: self.stop_camera(controller),
+                                bg='#FF5733', fg='white', font=("Arial", 12))
+        back_button.pack(pady=10)
 
-        # Existing code for gif_box, input text, and recording button here
+    def start_camera(self):
+        # Initialize the camera and YOLO model only when this page is shown
+        if not self.cap:
+            self.cap = cv2.VideoCapture(0)  # Open the camera
+        if not self.model:
+            self.model = YOLO(r'C:\Users\pmoni\project\sign_language_detection\best.pt')  # Load YOLO model
+        
+        # Start the video capturing process
+        self.update_frame()
 
-              def gif_stream():
-                     global cnt
-                     global gif_frames
-                     if cnt == len(gif_frames):
-                            return
-                     img = gif_frames[cnt]
-                     cnt += 1
-                     imgtk = ImageTk.PhotoImage(image=img)
-                     self.gif_box.imgtk = imgtk 
-                     self.gif_box.configure(image=imgtk)
-                     self.gif_box.after(100, gif_stream)  # Adjusting the delay to 100 ms for smoother playback
+    def update_frame(self):
+        success, frame = self.cap.read()
+        if success:
+            # Run inference and get results
+            results = self.model.track(frame, persist=True)
 
-              def hear_voice():
-                     global inputtxt
-                     store = sr.Recognizer()
-                     with sr.Microphone() as s:
-                            inputtxt.delete("1.0", END)  # Clear previous input
-                            try:
-                                   audio_input = store.record(s, duration=10)
-                                   text_output = store.recognize_google(audio_input)
-                                   inputtxt.insert(END, text_output)
-                            except sr.UnknownValueError:
-                                   print("Could not understand audio")
-                                   inputtxt.insert(END, 'Could not understand audio')
-                            except sr.RequestError as e:
-                                   print(f"Error with request: {e}")
-                                   inputtxt.insert(END, 'Service unavailable')
+            # Annotate the frame with detection results
+            annotated_frame = results[0].plot()
 
-              def Take_input():
-                     INPUT = inputtxt.get("1.0", "end-1c")
-                     print(INPUT)
-                     global gif_frames
-                     gif_frames=func(INPUT)
-                     global cnt
-                     cnt=0
-                     gif_stream()
-                     self.gif_box.place(x=400, y=160) 
-              
-              l = tk.Label(self,text = "Enter Text or Voice:")
-              l1 = tk.Label(self,text = "OR")
-              inputtxt = tk.Text(self, height = 4,width = 25)
-              voice_button= tk.Button(self,height = 2,width = 20, text="Record Voice",command=lambda: hear_voice())
-              voice_button.place(x=50,y=180)
-              Display = tk.Button(self, height = 2,width = 20,text ="Convert",command = lambda:Take_input())
-              l.place(x=50, y=160)
-              l1.place(x=115, y=230)
-              inputtxt.place(x=50, y=250)
-              Display.pack()
+            # Convert the frame to ImageTk format
+            cv_img = cv2.cvtColor(annotated_frame, cv2.COLOR_BGR2RGB)
+            img_pil = Image.fromarray(cv_img)
+            imgtk = ImageTk.PhotoImage(image=img_pil)
+
+            # Update the Tkinter label with the new image
+            self.label.imgtk = imgtk
+            self.label.configure(image=imgtk)
+
+        # Schedule the next frame update
+        self.after(10, self.update_frame)
+
+    def stop_camera(self, controller):
+        if self.cap:
+            self.cap.release()  # Release the camera when done
+        controller.show_frame("StartPage")
 
 
-class SignToVideo(tk.Frame):
-       def __init__(self, parent, controller):
-              tk.Frame.__init__(self, parent, bg='#f0f0f0')
-              label = tk.Label(self, text="Sign to Voice", font=("Verdana", 16, "bold"), bg='#f0f0f0')
-              label.pack(pady=10)
+class TextToSign(tk.Frame):
+    def __init__(self, parent, controller):
+        tk.Frame.__init__(self, parent, bg='#f0f0f0')
+        self.controller = controller
+        label = tk.Label(self, text="Text to Sign", font=("Verdana", 16, "bold"), bg='#f0f0f0')
+        label.pack(pady=10)
 
-              self.disp_txt = tk.Text(self, height=4, width=25)  # Initialize disp_txt here
-              self.disp_txt.pack()
-              button_frame = tk.Frame(self, bg='#f0f0f0')
-              button_frame.pack(pady=10)
+        # Text input box for users to type in the text to be translated
+        self.text_input = tk.Entry(self, width=50, font=("Arial", 14))
+        self.text_input.pack(pady=10)
 
-              button1 = tk.Button(button_frame, text="Back to Home", command=lambda: controller.show_frame(StartPage), 
-                                   bg='#f44336', fg='white', font=("Arial", 12), borderwidth=0, padx=20)
-              button1.grid(row=0, column=0, padx=10)
+        # Button to trigger the translation
+        translate_button = tk.Button(self, text="Translate to Sign", command=self.convert_text_to_sign, 
+                                     bg='#4CAF50', fg='white', font=("Arial", 12), padx=20)
+        translate_button.pack(pady=10)
 
-              button2 = tk.Button(button_frame, text="Voice to Sign", command=lambda: controller.show_frame(VideoToSign), 
-                                   bg='#2196F3', fg='white', font=("Arial", 12), borderwidth=0, padx=20)
-              button2.grid(row=0, column=1, padx=10)
+        # Center GIF display box
+        self.gif_box = tk.Label(self, bg='#f0f0f0')
+        self.gif_box.pack(pady=10)
 
-        # Existing code for video stream button and text display here
+        # Back and Sign-to-Voice buttons
+        button_frame = tk.Frame(self, bg='#f0f0f0')
+        button_frame.pack(pady=10)
 
-              def start_video():
-                     video_frame = tk.Label(self)
-                     cam = cv2.VideoCapture(0)
-                     
-                     global img_counter
-                     img_counter = 0
-                     global img_text
-                     img_text = ''
-                     def video_stream():
-                            global img_text
-                            global img_counter
-                            if(img_counter>200):
-                                   return None
-                            img_counter+=1
-                            ret, frame = cam.read()
-                            frame = cv2.flip(frame,1)
-                            img=cv2.rectangle(frame, (425,100),(625,300), (0,255,0), thickness=2, lineType=8, shift=0)
-                            lower_blue = np.array([35,10,0])
-                            upper_blue = np.array([160,230,255])
-                            imcrop = img[102:298, 427:623]
-                            hsv = cv2.cvtColor(imcrop, cv2.COLOR_BGR2HSV)
-                            mask = cv2.inRange(hsv, lower_blue, upper_blue)
-                            cv2.putText(frame, img_text, (30, 400), cv2.FONT_HERSHEY_TRIPLEX, 1.5, (0, 255, 0))
-                            img_name = "tmp1.png"
-                            save_img = cv2.resize(mask, (image_x, image_y))  # Already resizing to 64x64, so this is fine
-                            cv2.imwrite(img_name, save_img)
+        button1 = tk.Button(button_frame, text="Back to Home", command=lambda: controller.show_frame("StartPage"), 
+                            bg='#f44336', fg='white', font=("Arial", 12), borderwidth=0, padx=20)
+        button1.grid(row=0, column=0, padx=10)
 
-                            def speak_text(text):
-                                   engine = pyttsx3.init()
-                                   engine.say(text)
-                                   engine.runAndWait()
+        button2 = tk.Button(button_frame, text="Sign to Voice", command=lambda: controller.show_frame("SignToVoice"), 
+                            bg='#2196F3', fg='white', font=("Arial", 12), borderwidth=0, padx=20)
+        button2.grid(row=0, column=1, padx=10)
 
-                            tmp_text=img_text[0:]
-                            img_text = give_char()
-                            if(tmp_text!=img_text):
-                                   print(tmp_text)
-                                   self.disp_txt.insert(END, tmp_text)
-                                   speak_text(tmp_text)
+    def convert_text_to_sign(self):
+        input_text = self.text_input.get().lower()
+        
+        # Ensure there's input text
+        if not input_text:
+            print("Please enter some text.")
+            return
 
-                            img = PIL.Image.fromarray(frame)
-                            imgtk = ImageTk.PhotoImage(image=img)
-                            video_frame.imgtk = imgtk
-                            video_frame.configure(image=imgtk)
-                            video_frame.after(1, video_stream)
-                     video_stream()
-                     self.disp_txt.pack()
-                     video_frame.pack()
-              
-              start_vid = tk.Button(self,height = 2,width = 20, text="Start Video",command=lambda: start_video())
-              start_vid.pack()
+        # Define the folder where alphabet GIFs are stored
+        alpha_dest = r"C:\Users\pmoni\project\Two-way-sign-Language-Translator-main\Two-way-sign-Language-Translator-main\alphabet"  # Change this to your actual path
+
+        # Initialize frames list for animation
+        all_frames = []
+        for char in input_text:
+            if char in string.ascii_lowercase:  # Check if it's a letter
+                gif_path = os.path.join(alpha_dest, f"{char}_small.gif")
+                try:
+                    im = PILImage.open(gif_path)
+                    frameCnt = im.n_frames
+
+                    # Loop through GIF frames and add to all_frames
+                    for frame_num in range(frameCnt):
+                        im.seek(frame_num)
+                        img = PILImage.fromarray(np.array(im.convert('RGBA')))
+
+                        # Resize the frame to 5cm x 5cm (189x189 pixels)
+                        img = img.resize((189, 189), PILImage.LANCZOS)
+
+                        all_frames.append(img)
+
+                except Exception as e:
+                    print(f"Error loading GIF for {char}: {e}")
+
+        # Start displaying the GIF frames one by one
+        self.display_gif_frames(all_frames)
+
+    def display_gif_frames(self, all_frames):
+        if not all_frames:
+            print("No frames to display.")
+            return
+
+        def update_frame(idx):
+            frame = all_frames[idx]
+            img_tk = ImageTk.PhotoImage(frame)
+            self.gif_box.configure(image=img_tk)
+            self.gif_box.image = img_tk
+            # Display the next frame after 100 ms (adjust as needed)
+            idx = (idx + 1) % len(all_frames)
+            self.after(2000, update_frame, idx)
+
+        # Start updating frames
+        update_frame(0)
 
 
-app = Tk_Manage()
-app.geometry("800x750")
-app.mainloop()
+if __name__ == "__main__":
+    app = SignLanguageApp()
+    app.mainloop()
