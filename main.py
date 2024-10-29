@@ -107,7 +107,7 @@ class SignToVoice(tk.Frame):
         if not self.cap:
             self.cap = cv2.VideoCapture(0)  # Open the camera
         if not self.model:
-            self.model = YOLO(r'C:\Users\pmoni\project\sign_language_detection\best.pt')  # Replace with your YOLO model path
+            self.model = YOLO(r'C:\Users\pmoni\project\sign_language_detection\best1.pt')  # Replace with your YOLO model path
         
         # Start the video capturing process
         self.update_frame()
