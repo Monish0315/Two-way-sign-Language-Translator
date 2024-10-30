@@ -8,7 +8,8 @@ import string
 import numpy as np
 import requests
 from PIL import Image as PILImage
-
+import pyttsx3  
+import speech_recognition as sr
 
 class SignLanguageApp(tk.Tk):
     def __init__(self):
@@ -39,7 +40,6 @@ class SignLanguageApp(tk.Tk):
         # Start camera only when SignToVoice page is shown
         if page_name == "SignToVoice":
             frame.start_camera()
-
 
 class StartPage(tk.Frame):
     def __init__(self, parent, controller):
@@ -82,6 +82,7 @@ class SignToVoice(tk.Frame):
         self.model = None  # Placeholder for the YOLO model
         self.detected_text = ""
         self.sign_start_time = None  # Time when the sign was first detected
+        self.tts_engine = pyttsx3.init()  # Initialize pyttsx3 TTS engine
 
         # Create a label to display the video stream
         self.label = tk.Label(self)
@@ -103,6 +104,12 @@ class SignToVoice(tk.Frame):
                                          bg='#2196F3', fg='white', font=("Arial", 12))
         self.sentence_button.pack(pady=10)
 
+        # Button to read text aloud
+        self.speech_button = tk.Button(self, text="Read Detected Text Aloud",
+                                       command=self.speak_detected_text,
+                                       bg='#4CAF50', fg='white', font=("Arial", 12))
+        self.speech_button.pack(pady=10)
+
     def start_camera(self):
         if not self.cap:
             self.cap = cv2.VideoCapture(0)  # Open the camera
@@ -123,7 +130,6 @@ class SignToVoice(tk.Frame):
             for result in results:
                 if result.boxes:
                     for box in result.boxes:
-                        # Get the class id and corresponding label
                         class_id = int(box.cls[0])  # Assuming single detection
                         label = result.names[class_id]
                         current_detected_text += label + " "
@@ -132,20 +138,17 @@ class SignToVoice(tk.Frame):
 
             if current_detected_text:
                 if self.sign_start_time is None:
-                    # Start the timer if a new sign is detected
                     self.sign_start_time = cv2.getTickCount()
                 else:
-                    # Check how long the sign has been held
                     elapsed_time = (cv2.getTickCount() - self.sign_start_time) / cv2.getTickFrequency()
-                    if elapsed_time > 3:  # If held for more than 3 seconds
-                        # Update the detected text in the text box
+                    if elapsed_time > 1:
                         if current_detected_text not in self.detected_text:
                             self.detected_text += " " + current_detected_text
                             self.text_box.delete("1.0", tk.END)
                             self.text_box.insert(tk.END, self.detected_text)
-                            self.sign_start_time = None  # Reset the timer
+                            self.sign_start_time = None
             else:
-                self.sign_start_time = None  # Reset if no sign is detected
+                self.sign_start_time = None
 
             cv_img = cv2.cvtColor(annotated_frame, cv2.COLOR_BGR2RGB)
             img_pil = Image.fromarray(cv_img)
@@ -162,26 +165,52 @@ class SignToVoice(tk.Frame):
         controller.show_frame("StartPage")
 
     def generate_sentence(self):
-        text_input = self.text_box.get("1.0", tk.END).strip()
-        if text_input:
-            headers = {
-                "Authorization": "Bearer API_KEY"  # Replace with your Hugging Face API key
-            }
-            payload = {
-                "inputs": text_input,
-                "parameters": {"max_length": 50},
-                "options": {"wait_for_model": True},
-            }
-            response = requests.post(
-                "https://api-inference.huggingface.co/models/gpt2",
-                headers=headers,
-                json=payload
-            )
-            if response.status_code == 200:
-                sentence = response.json()[0]["generated_text"]
-                self.text_box.insert(tk.END, f"\nGenerated Sentence: {sentence}")
-            else:
-                self.text_box.insert(tk.END, "\nError generating sentence.")
+        # Open a new window for correcting detected text
+        correction_window = tk.Toplevel(self)
+        correction_window.title("Correct Detected Text")
+        correction_window.geometry("400x300")
+
+        # Text box for editing detected text
+        edit_text = tk.Text(correction_window, height=10, width=40, font=("Arial", 12))
+        edit_text.insert(tk.END, self.text_box.get("1.0", tk.END).strip())  # Load detected text
+        edit_text.pack(pady=10)
+
+        # Function to submit corrected text
+        def submit_corrected_text():
+            corrected_text = edit_text.get("1.0", tk.END).strip()
+            if corrected_text:
+                headers = {
+                    "Authorization": "Bearer API_KEY"  # Replace with your Hugging Face API key
+                }
+                payload = {
+                    "inputs": corrected_text,
+                    "parameters": {"max_length": 50},
+                    "options": {"wait_for_model": True},
+                }
+                response = requests.post(
+                    "https://api-inference.huggingface.co/models/gpt2",
+                    headers=headers,
+                    json=payload
+                )
+                if response.status_code == 200:
+                    sentence = response.json()[0]["generated_text"]
+                    self.text_box.insert(tk.END, f"\nGenerated Sentence: {sentence}")
+                else:
+                    self.text_box.insert(tk.END, "\nError generating sentence.")
+                correction_window.destroy()  # Close the correction window after submission
+
+        # Button to submit corrected text
+        submit_button = tk.Button(correction_window, text="Submit Corrected Text", command=submit_corrected_text, bg='#2196F3', fg='white', font=("Arial", 12))
+        submit_button.pack(pady=10)
+
+    def speak_detected_text(self):
+        # Get detected text from the text box
+        detected_text = self.text_box.get("1.0", tk.END).strip()
+        if detected_text:
+            # Use the TTS engine to speak the detected text
+            self.tts_engine.say(detected_text)
+            self.tts_engine.runAndWait()
+
 
 
 class TextToSign(tk.Frame):
@@ -198,6 +227,11 @@ class TextToSign(tk.Frame):
         translate_button = tk.Button(self, text="Translate to Sign", command=self.convert_text_to_sign, 
                                      bg='#4CAF50', fg='white', font=("Arial", 12), padx=20)
         translate_button.pack(pady=10)
+
+        # Button to record voice
+        record_button = tk.Button(self, text="Record Voice", command=self.record_voice_to_text, 
+                                  bg='#FF9800', fg='white', font=("Arial", 12), padx=20)
+        record_button.pack(pady=10)
 
         self.gif_box = tk.Label(self, bg='#f0f0f0')
         self.gif_box.pack(pady=10)
@@ -257,6 +291,23 @@ class TextToSign(tk.Frame):
                 self.after(200, update_frame, idx)
 
         update_frame(0)
+
+    def record_voice_to_text(self):
+        recognizer = sr.Recognizer()
+        with sr.Microphone() as source:
+            print("Recording... Please speak.")
+            audio = recognizer.listen(source)
+
+        try:
+            # Recognize the speech using Google Web Speech API
+            text = recognizer.recognize_google(audio)
+            print("You said:", text)
+            self.text_input.delete(0, tk.END)  # Clear existing text
+            self.text_input.insert(tk.END, text)  # Insert recognized text
+        except sr.UnknownValueError:
+            print("Could not understand the audio.")
+        except sr.RequestError:
+            print("Could not request results from the speech recognition service.")
 
 if __name__ == "__main__":
     app = SignLanguageApp()
